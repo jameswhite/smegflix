@@ -1,0 +1,35 @@
+#!/bin/bash
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+DGW=$(/sbin/route -n|/bin/grep "^0.0.0.0"|/usr/bin/awk '{print $2}')
+if [ ! -z "${DGW}" ]; then
+    /bin/ping -w3 -c 3 ${DGW} > /dev/null 2>&1 && exit
+fi
+IP=$(/sbin/ifconfig ppp0|/bin/grep inet|/bin/sed -e's/[^:]*://' -e's/ .*//')
+while [ -z "${IP}" ];do
+    ps -ef | grep pptp -q || pon  ipredator
+    sleep 20
+    ifconfig ppp0
+    EXIT=$?
+    while [ "${EXIT}" -eq "1" ]; do
+        ifconfig ppp0
+        EXIT=$?
+        sleep 3
+    done
+    IP=$(/sbin/ifconfig ppp0|/bin/grep inet|/bin/sed -e's/[^:]*://' -e's/ .*//')
+done
+
+# Fix our default route...
+route del default
+EXIT=$?
+while [ ${EXIT} -ne 7 ]; do
+    route del default
+done
+
+route add default gw ${IP}
+cat<<EOF >/etc/shorewall/rules
+ACCEPT net \$FW:${IP} tcp 22
+ACCEPT net \$FW:${IP} tcp 443
+EOF
+for ns in $(dig +short -t ns ${DOMAIN}); do echo "ACCEPT net:$(dig +short $ns) all" >> /etc/shorewall/rules; done
+/etc/init.d/shorewall restart
+/usr/sbin/ddclient

@@ -1,0 +1,118 @@
+#!/bin/bash
+################################################################################
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+################################################################################
+[ -z "${IPREDATOR_USERNAME}" ] && exit 1   
+[ -z "${IPREDATOR_PASSWORD}" ] && exit 1 
+[ -z "${DOMAIN}" ] && exit 1 
+
+################################################################################
+# set up the ipredator vpn
+################################################################################
+dpkg -l | grep pptp-linux || \
+  sudo apt-get install -y pptp-linux ppp
+
+cat<<EOF > /etc/resolv.conf
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+EOF
+for ns in $(dig +short -t ns ${DOMAIN}); do echo "nameserver $(dig +short ${ns})" >> /etc/resolv.conf ;done
+
+cat<<EOF > /etc/ppp/peers/ipredator
+pty "pptp vpn.ipredator.se --nolaunchpppd --nobuffer --loglevel 0"
+name ${IPREDATOR_USERNAME}
+remotename ipredator
+file /etc/ppp/options.pptp
+ipparam ipredator
+nodefaultroute
+persist
+EOF
+
+cat<<EOF > /etc/ppp/chap-secrets
+# Secrets for authentication using CHAP
+# client        server  secret                  IP addresses
+${IPREDATOR_USERNAME}    ipredator   ${IPREDATOR_PASSWORD}        *
+EOF
+
+# /etc/ppp/options.pptp
+if [ ! -f /etc/ppp/options.pptp.dist ]; then
+    cp /etc/ppp/options.pptp /etc/ppp/options.pptp.dist
+fi
+sed -e 's/.*require-mppe-128/require-mppe-128/' /etc/ppp/options.pptp.dist > \
+/etc/ppp/options.pptp
+
+pon ipredator
+sleep 10
+IP=$(/sbin/ifconfig ppp0|/bin/grep inet|/bin/sed -e's/[^:]*://' -e's/ .*//')
+while [ -z "${IP}" ];do
+    ps -ef | grep -q pp[t]p || pon ipredator
+    sleep 20
+    ifconfig ppp0 
+    EXIT=$?
+    while [ "${EXIT}" -eq "1" ]; do
+        ifconfig ppp0 
+        EXIT=$?
+        sleep 3
+    done
+    IP=$(/sbin/ifconfig ppp0|/bin/grep inet|/bin/sed -e's/[^:]*://' -e's/ .*//')
+done
+if [ -z "${IP}" ];then echo "Could not get ppp0 IP Address."; exit 1; fi
+
+# get the ISP provided default gateway
+ISP_DGW=$(ip route show | grep default | awk '{print $3}')
+if [ -z "${ISP_DGW}" ];then echo "Could not determine ISP Default Gateway."; exit 1; fi
+
+# get the ipredator provided IP address
+IPRED_IP=$(ifconfig ppp0|grep "inet addr:"|sed -e's/.*inet addr://' -e's/ .*//')
+if [ -z "${IPRED_IP}" ];then echo "Could not get the ipredator vpn IP"; exit 1; fi
+
+# route directly (via the ISP DGW) to the core
+for h in $(dig +short -t ns ${DOMAIN}); do
+    echo "adding route $(dig +short ${h}) via ${ISP_DGW}"
+    ip route add $(dig +short ${h}) via ${ISP_DGW}
+done
+
+# route directly (via the ISP DGW) to vpn.ipredator.se
+dig +short vpn.ipredator.se| while read IPRED_IP; do
+    echo "adding route ${IPRED_IP} via ${ISP_DGW}"
+    ip route add ${IPRED_IP} via ${ISP_DGW}
+done
+
+# route directly (via the ISP DGW) to s3.amazonaws.com
+ip route add 72.21.192.0/19 via ${ISP_DGW}
+ip route add 207.171.160.0/19 via ${ISP_DGW}
+
+# Route everything else out ppp0 (ergo the ipredator vpn)
+echo "Deleting the IP provided default gateway"
+ip route delete default; 
+EXIT=$?
+while [ ${EXIT} -eq 0 ];do
+    ip route delete default; 
+    EXIT=$?
+done
+
+echo "Making the ipredator IP the default gateway"
+ip route add default via ${IPRED_IP}
+NEW_DGW=$(ip route show | grep default | awk '{print $3}')
+while [ "${NEW_DGW}" != "${IPRED_IP}" ];do
+    ip route add default via ${IPRED_IP}
+    NEW_DGW=$(ip route show | grep default | awk '{print $3}')
+done
+
+cat<<EOF >/etc/shorewall/rules
+ACCEPT net \$FW:${IPRED_IP} tcp 22
+ACCEPT net \$FW:${IPRED_IP} tcp 443
+EOF
+for ns in $(dig +short -t ns ${DOMAIN}); do echo "ACCEPT net:$(dig +short $ns) all" >> /etc/shorewall/rules; done
+/etc/init.d/shorewall restart
+
+cat<< EOF > /etc/ddclient.conf
+pid=/var/run/ddclient.pid
+protocol=dyndns2
+use=if, if=ppp0
+server=members.dyndns.org
+login=${DDNS_LOGIN}
+password='${DDNS_PASSWORD}'
+${DDNS_DOMAIN}
+EOF
+/usr/sbin/ddclient

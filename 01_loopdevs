@@ -1,0 +1,81 @@
+#!/bin/bash
+################################################################################
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+dpkg -l | grep "ii *rsync" || apt-get install -y rsync
+grep -q "options loop max_loop=64" /etc/modules || \
+    echo "options loop max_loop=64" >> /etc/modules
+lsmod|grep -q dm_mod||modprobe dm_mod
+
+################################################################################
+# create the ramfs overlay for /etc and /root
+################################################################################
+# one-time-pad key for all cryptoloop filesystems
+KEY=$(dd if=/dev/random bs=4096 count=1 2>/dev/null|sha256sum|awk '{print $1}') 
+
+for n in `seq 0 3`;do
+    if [ ! -b /dev/loop${n} ]; then
+        mknod -m600 /dev/loop${n} b 7 ${n}
+    fi
+done
+
+################################################################################
+# /opt overlay
+ps -ef | grep -q auto[d]ir && /etc/init.d/autodir stop
+if [ ! -f /u01/oradata.bak ]; then
+    dd if=/dev/zero of=/u01/oradata.bak bs=10240 count=1843200
+    /sbin/badblocks -s -w -t random -v /u01/oradata.bak
+fi
+losetup -a | grep -q "^/dev/loop0 "|| \
+    losetup /dev/loop0 /u01/oradata.bak
+[ -b /dev/mapper/opt ] || echo ${KEY} | cryptsetup create opt /dev/loop0
+
+mount | grep "^/dev/mapper/opt " || \
+    mke2fs -j /dev/mapper/opt && mount /dev/mapper/opt /opt
+ps -ef | grep -q auto[d]ir || /etc/init.d/autodir start
+if [ -d /var/tmp/opt ];then rmdir /var/tmp/opt;fi
+
+########################################
+# /root overlay
+# we could randomize root's password here
+if [ ! -f /dev/shm/root_overlay.fs ]; then
+    dd if=/dev/zero of=/dev/shm/root_overlay.fs bs=1024 count=2048
+    /sbin/badblocks -s -w -t random -v /dev/shm/root_overlay.fs
+fi
+losetup -a | grep -q "^/dev/loop1 "|| \
+  losetup /dev/loop1 /dev/shm/root_overlay.fs
+[ -b /dev/mapper/root ] || echo ${KEY} | cryptsetup create root /dev/loop1
+if [ ! -d /var/tmp/root ];then mkdir -p /var/tmp/root;fi
+mount | grep "^/dev/mapper/root " 
+if [ $? -eq 1 ];then
+    mke2fs -j /dev/mapper/root 
+    mount /dev/mapper/root /var/tmp/root
+    rsync -avzP /root/ /var/tmp/root/
+    if [ $? -eq 0 ];then
+        umount /var/tmp/root && mount /dev/mapper/root /root
+    fi
+fi
+if [ -d /var/tmp/root ];then rmdir /var/tmp/root;fi
+
+########################################
+# /etc/ overlay
+if [ ! -f /dev/shm/etc_overlay.fs ]; then
+    dd if=/dev/zero of=/dev/shm/etc_overlay.fs bs=1024 count=8192 
+    /sbin/badblocks -s -w -t random -v /dev/shm/etc_overlay.fs
+fi
+losetup -a | grep -q "^/dev/loop2 "|| \
+    losetup /dev/loop2 /dev/shm/etc_overlay.fs 
+[ -b /dev/mapper/etc ] || echo ${KEY} | cryptsetup create etc /dev/loop2
+if [ ! -d /var/tmp/etc ];then mkdir -p /var/tmp/etc;fi
+mount | grep "^/dev/mapper/etc " 
+if [ $? -eq 1 ];then
+    mke2fs -j /dev/mapper/etc
+    mount /dev/mapper/etc /var/tmp/etc
+    rsync -avzP /etc/ /var/tmp/etc/
+    EXIT=$?
+    grep -v "/var/tmp/etc" /var/tmp/etc/mtab > /var/tmp/etc/mtab.new
+    mv /var/tmp/etc/mtab.new /var/tmp/etc/mtab
+    if [ ${EXIT} -eq 0 ];then
+        umount /var/tmp/etc && mount /dev/mapper/etc /etc
+    fi
+fi
+if [ -d /var/tmp/etc ];then rmdir /var/tmp/etc;fi

@@ -1,0 +1,82 @@
+#!/bin/bash
+apt-get install -y libapache2-mod-php5 php5 php5-cgi php5-common php5-sqlite
+
+[ -d /opt/local/wtorrent ] && /bin/rm -fr /opt/local/wtorrent
+[ -d /opt/local/wtorrent.pristine ] && /bin/rm -fr /opt/local/wtorrent.pristine
+[ ! -d /opt/local ] && mkdir -p /opt/local
+( cd /opt/local; svn co http://svn.wtorrent-project.org/wtorrent/trunk/wtorrent/)
+( cd /opt/local/wtorrent/; touch db/database.db )
+( cd /opt/local/wtorrent/; chown -R www-data:www-data conf db torrents tpl_c cls)
+
+(cd /etc/apache2/mods-enabled; [ ! -h scgi.load ] && ln -s ../mods-available/scgi.load)
+grep -q "SCGIMount /RPC2 127.0.0.1:5000" /etc/apache2/conf.d/rpc || \
+    (echo "SCGIMount /RPC2 127.0.0.1:5000" > /etc/apache2/conf.d/rpc && /etc/init.d/apache2 restart)
+[ ! -d /opt/tmp ] && mkdir -p /opt/tmp
+chmod 1777 /opt/tmp
+
+chown -R opt:www-data /opt/event_correlation/data/{loading,completed}
+chmod 775 /opt/event_correlation/data/{completed,loading}
+
+cat<<EOF >/opt/local/wtorrent/conf/user.conf.php
+<?php
+/* wTorrent autoconfiguration file. Created 9/1/2011 */
+define ('LANGUAGE', 'en');
+define ('DB_FILE', 'db/database.db');
+define ('RT_HOST', 'localhost');
+define ('RT_PORT', 80);
+define ('RT_DIR', '/RPC2');
+define ('RT_AUTH', false);
+define ('RT_USER', '');
+define ('RT_PASSWD', '');
+define ('NO_MULTICALL', true);
+define ('EFFECTS', true);
+define ('DIR_TORRENTS', '/opt/event_correlation/data/loading/');
+define ('DIR_EXEC', '/opt/local/wtorrent/');
+define ('DIR_DOWNLOAD', '/opt/event_correlation/data/completed');
+?>
+EOF
+
+# INSERT INTO "tor_passwd" VALUES(1,'','f0f6ef76f55387899813dc24199815b5',1,'/opt/event_correlation/data/loading',1);
+cat<<EOF | sqlite3 /opt/local/wtorrent/db/database.db
+BEGIN TRANSACTION;
+CREATE TABLE tor_passwd(id integer primary key, user text, passwd text, admin integer, dir text, force_dir integer);
+CREATE TABLE torrents(hash string, user int, private int);
+CREATE TABLE feeds(id integer primary key, url text, title text, user integer);
+CREATE TABLE cookie(id integer primary key, userid integer, value text, hostname text);
+COMMIT;
+EOF
+
+# Patch to use HTTP_USER if they're in the sqlite db
+(cd /opt/local/wtorrent/cls;
+cat<<EOF | base64 -d | patch
+LS0tIHJ0b3JyZW50LmNscy5waHAJMjAxMS0wMS0wOSAxOTowNDoyMC4wMDAwMDAwMDAgKzAwMDAK
+KysrIHJ0b3JyZW50LmNscy5waHAucGF0Y2hlZAkyMDExLTAxLTA5IDE5OjE0OjIyLjAwMDAwMDAw
+MCArMDAwMApAQCAtNTcsOCArNTcsMTEgQEAKIAlwdWJsaWMgZnVuY3Rpb24gX19jb25zdHJ1Y3Qo
+ICkKIAl7CiAJCXBhcmVudDo6X19jb25zdHJ1Y3QoICk7Ci0JCWlmKGlzc2V0KCR0aGlzLT5fcmVx
+dWVzdFsnbG9nb3V0J10pKSAkdGhpcy0+bG9nb3V0KCk7Ci0JCWlmKGlzc2V0KCR0aGlzLT5fcmVx
+dWVzdFsndXNlcl9sb2dpbiddKSkgJHRoaXMtPmxvZ2luKCR0aGlzLT5fcmVxdWVzdFsndXNlcmYn
+XSwgJHRoaXMtPl9yZXF1ZXN0WydwYXNzd2RmJ10pOworICAgICAgICAgICAgICAgIGlmKCEkdGhp
+cy0+aHR0cExvZ2luKCkpIAorIAkgICAgICAgIHsgCisJCSAgICAJaWYoaXNzZXQoJHRoaXMtPl9y
+ZXF1ZXN0Wydsb2dvdXQnXSkpICR0aGlzLT5sb2dvdXQoKTsKKwkJCWlmKGlzc2V0KCR0aGlzLT5f
+cmVxdWVzdFsndXNlcl9sb2dpbiddKSkgJHRoaXMtPmxvZ2luKCR0aGlzLT5fcmVxdWVzdFsndXNl
+cmYnXSwgJHRoaXMtPl9yZXF1ZXN0WydwYXNzd2RmJ10pOworCQl9CiAJfQogCXByaXZhdGUgZnVu
+Y3Rpb24gY2hlY2tFcnJvcigkcmVzdWx0KQogCXsKQEAgLTY4LDcgKzcxLDIyIEBACiAJCQlyZXR1
+cm4gZmFsc2U7CiAJfQogCXByb3RlY3RlZCBmdW5jdGlvbiBjb25zdHJ1Y3QoICl7fQotCisJcHJp
+dmF0ZSBmdW5jdGlvbiBodHRwTG9naW4oKSAgICAgICAgCisJeyAgICAgICAKKwkJJHVzZXIgPSAk
+X1NFUlZFUlsnUkVNT1RFX1VTRVInXTsKKwkJaWYoaXNzZXQoJF9TRVJWRVJbJ0FVVEhfVFlQRSdd
+KSAmJiAhZW1wdHkoJHVzZXIpKQorCQl7CisJCQkkcmVjb3JkID0gJHRoaXMtPl9kYi0+cXVlcnko
+J1NFTEVDVCBpZCwgYWRtaW4gRlJPTSB0b3JfcGFzc3dkIFdIRVJFIHVzZXIgPSA/JywkdXNlcik7
+CisJCQlpZigkcmVjb3JkICE9PSBmYWxzZSkKKwkJCXsKKwkJCQkkdGhpcy0+X3Nlc3Npb24tPmlk
+X3VzZXIgPSAkcmVjb3JkWydpZCddOworCQkJCSR0aGlzLT5fc2Vzc2lvbi0+YWRtaW4gPSAhISRy
+ZWNvcmRbJ2FkbWluJ107CisJCQkJJHRoaXMtPl9zZXNzaW9uLT51c2VyID0gJHVzZXI7CisJCQkJ
+cmV0dXJuIHRydWU7CisJCQl9CisJCX0KKwkJcmV0dXJuIGZhbHNlOworCX0KIAlwdWJsaWMgZnVu
+Y3Rpb24gaXNSZWdpc3RlcmVkKCApCiAJewogCQlpZigkdGhpcy0+YWRtaW4gJiYgJHRoaXMtPl9z
+ZXNzaW9uLT5hZG1pbikK
+EOF
+)
+
+/usr/bin/getent passwd | /usr/bin/awk -v count=10 -F: '{ if($3>100){ print "INSERT INTO tor_passwd VALUES("count",  \""$1"\", \"d41d8cd98f00b204e9800998ecf8427e\", 0, \"/opt/event_correlation/data/loading\", 1);"}count ++;}' | /usr/bin/sqlite3 /opt/local/wtorrent/db/database.db
+
+chown www-data:www-data /opt/local/wtorrent/db/database.db /opt/local/wtorrent/conf/user.conf.php
+
+[ -f /opt/local/wtorrent/install.php ] && /bin/rm /opt/local/wtorrent/install.php

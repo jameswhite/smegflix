@@ -1,0 +1,346 @@
+#!/bin/bash
+################################################################################
+#  Now fix apache so all these will work...
+
+COLUMNS=2000; dpkg -l | grep -q libapache2-s3-perl
+if [ $? -ne 0 ];then
+[ ! -d /opt/local/src/CPAN ] && mkdir -p /opt/local/src/CPAN
+( cd /opt/local/src/CPAN; wget -qO Apache2-S3-0.05.tar.gz "http://search.cpan.org/CPAN/authors/id/I/IW/IWADE/Apache2-S3-0.05.tar.gz" )
+( cd /opt/local/src/CPAN; tar xzf Apache2-S3-0.05.tar.gz )
+( cd /opt/local/src/CPAN/Apache2-S3-0.05; dh-make-perl --desc "Amazon S3 pass-through for Apache"; debian/rules binary )
+( cd /opt/local/src/CPAN; dpkg -i libapache2-s3-perl_0.05-1_all.deb )
+fi
+
+(cd /etc/apache2/mods-enabled; [ ! -h proxy.conf ] && ln -s ../mods-available/proxy.conf)
+(cd /etc/apache2/mods-enabled; [ ! -h proxy.load ] && ln -s ../mods-available/proxy.load)
+(cd /etc/apache2/mods-enabled; [ ! -h rewrite.load ] && ln -s ../mods-available/rewrite.load)
+(cd /etc/apache2/mods-enabled; [ ! -h proxy_http.load ] && ln -s ../mods-available/proxy_http.load)
+(cd /etc/apache2/mods-enabled; [ ! -h authnz_ldap.load ] && ln -s ../mods-available/authnz_ldap.load)
+(cd /etc/apache2/mods-enabled; [ ! -h ldap.load ] && ln -s ../mods-available/ldap.load)
+(cd /etc/apache2/mods-enabled; [ ! -h ssl.load ] && ln -s ../mods-available/ssl.load)
+(cd /etc/apache2/mods-enabled; [ ! -h ssl.conf ] && ln -s ../mods-available/ssl.conf)
+(cd /etc/apache2/sites-enabled;[ ! -h 001-default-ssl ] && ln -s ../sites-available/default-ssl 001-default-ssl)
+(cd /etc/apache2/sites-enabled;[ ! -h 000-default ] && ln -s ../sites-available/defaul  000-default)
+
+/bin/mkdir -p /var/www/mediacas/incoming
+
+cat<<EOF >/etc/apache2/ipaccess.conf
+Satisfy Any
+EOF
+
+for ns in $(dig +short -t ns ${DOMAIN}); do echo "Allow from $(dig +short ${ns})" >> /etc/apache2/ipaccess.conf ;done
+
+cat<<EOF >>/etc/apache2/ipaccess.conf
+Satisfy Any
+EOF
+
+cat<<EOF >/etc/apache2/useraccess.conf
+Order deny,allow
+Deny from all
+AuthType Basic
+AuthName "LDAP Authentication"
+AuthBasicProvider ldap
+AuthLDAPUrl "${LDAP_ANON_BIND}"
+AuthLDAPBindDN "${LDAP_ANON_USER}"
+AuthLDAPBindPassword ${LDAP_ANON_PASS}
+AuthzLDAPAuthoritative On
+require valid-user
+Include ipaccess.conf
+Satisfy Any
+EOF
+
+# now we create a one-reboot-persistent 4096 bit key for our SSL stuff.
+openssl genrsa -out /etc/ssl/private/ssl-cert-snakeoil.key 4096      
+cat<< EOCNF > /etc/ssl/openssl.cnf
+[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[ req_distinguished_name ]
+countryName = Country Name (2 letter code)
+countryName_default = GB
+stateOrProvinceName = State or Province Name (full name)
+stateOrProvinceName_default = Nottinghamshire
+localityName = Locality Name (eg, city)
+localityName_default = Sherwood Forest
+0.organizationName = Organization Name (eg, company)
+0.organizationName_default = Hood
+organizationalUnitName = Organizational Unit Name (eg, section)
+organizationalUnitName_default = People
+commonName = Common Name (eg, YOUR name)
+commonName_default = smegflix.smegasaurus.com
+emailAddress = Email Address
+emailAddress_default = robinlocksley@smegasaurus.com
+
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+EOCNF
+
+/usr/bin/openssl req -new -sha512 -days 365                         \
+                     -key  /etc/ssl/private/ssl-cert-snakeoil.key \
+                     -out /etc/ssl/ssl-cert-snakeoil.csr          \
+                     -config /etc/ssl/openssl.cnf -batch      
+
+openssl x509 -req -days 365 -sha512                          \
+             -in /etc/ssl/ssl-cert-snakeoil.csr              \
+             -signkey /etc/ssl/private/ssl-cert-snakeoil.key \
+             -out /etc/ssl/certs/ssl-cert-snakeoil.pem
+
+
+cat<<EOF >/etc/apache2/sites-available/default
+LDAPVerifyServerCert Off
+PerlModule Apache2::S3;
+PerlTransHandler Apache2::S3
+RewriteLock   /var/tmp/apache2-rewrite.lock
+<VirtualHost _default_:80>
+    ServerAdmin smegmaster@smegasaurus.com
+    DocumentRoot /var/www
+    <Directory />
+        Options FollowSymLinks ExecCGI
+        AllowOverride None
+    </Directory>
+        RewriteEngine on
+        RewriteMap    mediacas-index prg:/usr/local/sbin/mediacas-index.pl
+        RewriteRule   ^/mediacas/index/(.*)$  /mediacas/\${mediacas-index:\$1} [P,L]
+
+        PerlSetVar S3Key ${S3KEY}
+        PerlSetVar S3Secret ${S3SECRET}
+        PerlSetVar S3Map '/mediacas/incoming/ => ${S3RWBUCKET},/mediacas/hashes/ => ${S3ROBUCKET}'
+        # If you want to support non-GET requests
+        PerlSetVar S3ReadWrite 1
+        ProxyRequests on
+        Alias /mediacas/index/ "/opt/git/mediacas/"
+        Alias /mediacas/norwidx/ "/opt/git/mediacas/"
+
+        <Proxy http://${MEDIACAS_HOSTNAME}/mediacas/*>
+            <LimitExcept GET>
+                Order deny,allow
+                Deny from all
+              </LimitExcept>
+              <Limit GET>
+                  Include ipaccess.conf
+              </Limit>
+        </Proxy>
+
+        <Proxy http://s3.amazonaws.com/${S3RWBUCKET}/*>
+          <LimitExcept GET PUT POST DELETE>
+              Order deny,allow
+              Deny from all
+          </LimitExcept>
+          <Limit GET PUT POST DELETE>
+              Include ipaccess.conf
+          </Limit>
+        </Proxy>
+
+        <Proxy http://s3.amazonaws.com/${S3ROBUCKET}/*>
+          <LimitExcept GET>
+            Order deny,allow
+            Deny from all
+          </LimitExcept>
+          <Limit GET>
+              Include ipaccess.conf
+          </Limit>
+        </Proxy>
+
+        <Directory /opt/git/mediacas/>
+            Options Indexes FollowSymLinks MultiViews
+            AllowOverride None
+            Include ipaccess.conf
+        </Directory>
+
+    <Directory /var/www/>
+            Options Indexes FollowSymLinks MultiViews
+        AllowOverride None
+            Include ipaccess.conf
+    </Directory>
+    Alias /wtorrent /opt/local/wtorrent
+    <Directory /opt/local/wtorrent/>
+            Options Indexes FollowSymLinks MultiViews
+        AllowOverride None
+            Include ipaccess.conf
+    </Directory>
+
+        ProxyRequests on
+        <Location /sabnzbd/>
+            order allow,deny
+            allow from all
+            ProxyPass http://localhost:8080/sabnzbd/
+            ProxyPassReverse http://localhost:8080/sabnzbd/
+            Include ipaccess.conf
+        </Location>
+
+        <Location /sickbeard/>
+            order allow,deny
+            allow from all
+            ProxyPass http://localhost:8081/sickbeard/
+            ProxyPassReverse http://localhost:8081/sickbeard/
+            Include ipaccess.conf
+        </Location>
+
+    ScriptAlias /cgi-bin/ /usr/lib/cgi-bin/
+    <Directory "/usr/lib/cgi-bin">
+        AllowOverride None
+        Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
+        Order allow,deny
+        Allow from all
+    </Directory>
+
+    ErrorLog /var/log/apache2/error.log
+    LogLevel warn
+    CustomLog /var/log/apache2/ssl_access.log combined
+
+    Alias /doc/ "/usr/share/doc/"
+    <Directory "/usr/share/doc/">
+        Options Indexes MultiViews FollowSymLinks
+        AllowOverride None
+        Order deny,allow
+        Deny from all
+        Allow from 127.0.0.0/255.0.0.0 ::1/128
+    </Directory>
+</VirtualHost>
+EOF
+
+cat<<EOF >/etc/apache2/sites-available/default-ssl
+LDAPVerifyServerCert Off
+PerlModule Apache2::S3;
+PerlTransHandler Apache2::S3
+RewriteLock   /var/tmp/apache2-rewrite.lock
+<IfModule mod_ssl.c>
+<VirtualHost _default_:443>
+        ServerAdmin smegmaster@smegasaurus.com
+        DocumentRoot /var/www
+        <Directory />
+                Options FollowSymLinks ExecCGI
+                AllowOverride None
+        </Directory>
+        RewriteEngine on
+        RewriteMap    mediacas-index prg:/usr/local/sbin/mediacas-index.pl
+        RewriteRule   ^/mediacas/index/(.*)$  /mediacas/\${mediacas-index:\$1} [P,L]
+        PerlSetVar S3Key ${S3KEY}
+        PerlSetVar S3Secret ${S3SECRET}
+        PerlSetVar S3Map "/mediacas/incoming/ => ${S3RWBUCKET},/mediacas/hashes/ => ${S3ROBUCKET}"
+
+        # If you want to support non-GET requests
+        PerlSetVar S3ReadWrite 1
+        ProxyRequests on
+        Alias /mediacas/index/ "/opt/git/mediacas/"
+        Alias /mediacas/norwidx/ "/opt/git/mediacas/"
+
+        <Proxy https://${MEDIACAS_HOSTNAME}/mediacas/*>
+            <LimitExcept GET>
+                Order deny,allow
+                Deny from all
+              </LimitExcept>
+              <Limit GET>
+                  Include useraccess.conf
+              </Limit>
+        </Proxy>
+
+        <Proxy http://s3.amazonaws.com/${S3RWBUCKET}/*>
+          <LimitExcept GET PUT POST DELETE>
+              Order deny,allow
+              Deny from all
+          </LimitExcept>
+          <Limit GET PUT POST DELETE>
+              Include useraccess.conf
+          </Limit>
+        </Proxy>
+
+        <Proxy http://s3.amazonaws.com/${S3ROBUCKET}/*>
+          <LimitExcept GET>
+            Order deny,allow
+            Deny from all
+          </LimitExcept>
+          <Limit GET>
+              Include useraccess.conf
+          </Limit>
+        </Proxy>
+
+        <Directory /opt/git/mediacas/>
+            Options Indexes FollowSymLinks MultiViews
+            AllowOverride None
+            Include useraccess.conf
+        </Directory>
+
+        <Directory /var/www/>
+            Options Indexes FollowSymLinks MultiViews
+            AllowOverride None
+            Include useraccess.conf
+        </Directory>
+
+        Alias /wtorrent /opt/local/wtorrent
+        <Directory /opt/local/wtorrent/>
+            Options Indexes FollowSymLinks MultiViews
+            AllowOverride None
+            Include useraccess.conf
+        </Directory>
+        ProxyRequests on
+        <Location /sabnzbd/>
+            order allow,deny
+            allow from all
+            ProxyPass http://localhost:8080/sabnzbd/
+            ProxyPassReverse http://localhost:8080/sabnzbd/
+            Include useraccess.conf
+        </Location>
+
+        <Location /sickbeard/>
+            order allow,deny
+            allow from all
+            ProxyPass http://localhost:8081/sickbeard/
+            ProxyPassReverse http://localhost:8081/sickbeard/
+            Include useraccess.conf
+        </Location>
+
+        ScriptAlias /cgi-bin/ /usr/lib/cgi-bin/
+        <Directory "/usr/lib/cgi-bin">
+                AllowOverride None
+                Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
+                Order allow,deny
+                Allow from all
+        </Directory>
+
+        ErrorLog /var/log/apache2/error.log
+        LogLevel warn
+        CustomLog /var/log/apache2/ssl_access.log combined
+
+        Alias /doc/ "/usr/share/doc/"
+        <Directory "/usr/share/doc/">
+                Options Indexes MultiViews FollowSymLinks
+                AllowOverride None
+                Order deny,allow
+                Deny from all
+                Allow from 127.0.0.0/255.0.0.0 ::1/128
+        </Directory>
+
+        SSLEngine on
+        SSLProxyEngine on
+        SSLCertificateFile    /etc/ssl/certs/ssl-cert-snakeoil.pem
+        SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+        <FilesMatch "\.(cgi|shtml|phtml|php)$">
+                SSLOptions +StdEnvVars
+        </FilesMatch>
+        <Directory /usr/lib/cgi-bin>
+                SSLOptions +StdEnvVars
+        </Directory>
+        BrowserMatch ".*MSIE.*" \
+                nokeepalive ssl-unclean-shutdown \
+                downgrade-1.0 force-response-1.0
+
+</VirtualHost>
+</IfModule>
+EOF
+/etc/init.d/apache2 restart
+
+# now that we have S3 Access:
+[ ! -d /opt/local ] && mkdir -p /opt/local
+curl http://127.0.0.1/mediacas/incoming/git/mediacas.tar.gz > /opt/local/mediacas.tar.gz
+
+# un-pack it
+[ ! -d /opt/git ] && mkdir -p /opt/git
+[ -f /opt/local/mediacas.tar.gz ] && (cd /opt/git; tar xvzf /opt/local/mediacas.tar.gz);
+
+# Backups:
+# ( cd /opt/git; tar cvzf /opt/local/mediacas.tar.gz mediacas )
+# curl -X PUT -T /opt/local/mediacas.tar.gz http://127.0.0.1/mediacas/incoming/git/mediacas.tar.gz
+

@@ -1,0 +1,124 @@
+#!/bin/bash
+################################################################################
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+################################################################################
+if [ -z "${LDAP_USERNAME}" ];then echo "no LDAP_USERNAME" ;exit 1 ;fi
+if [ -z "${LDAP_PASSWORD}" ];then echo "no LDAP_PASSWORD" ;exit 1 ;fi
+if [ -z "${DOMAIN}" ]; then echo "no  DOMAIN"; exit 1; fi
+if [ -z "${BASEURL}" ];then echo "no BASEURL"; exit 1; fi
+export CREDENTIALS="${LDAP_USERNAME}:${LDAP_PASSWORD}"
+########################################
+# the rc file
+#
+export BASEPATH="/opt/event_correlation"
+mkdir -p ${BASEPATH}/{etc,data}
+mkdir -p ${BASEPATH}/data/{temp,session,watch,completed,loading,incoming}
+
+cat<<EOF >${BASEPATH}/etc/rtorrent.rc
+directory = ${BASEPATH}/data/temp
+session = ${BASEPATH}/data/session
+schedule = watch_directory,10,10,load_start=${BASEPATH}/data/watch/*.torrent
+schedule = untied_directory,5,5,"remove_untied="
+schedule = low_diskspace,60,60,"close_low_diskspace=500M"
+on_finished = rm_torrent,"execute=rm,\$d.get_tied_to_file="
+on_finished = move_complete,"execute=mv,-u,\$d.get_base_path=,${BASEPATH}/data/completed/;d.set_directory=${BASEPATH}/data/completed/"
+port_range = 6800-6899
+scgi_port = localhost:5000
+EOF
+
+########################################
+# the incoming cron job
+#
+mkdir -p ${BASEPATH}/bin
+cat<<EOF > ${BASEPATH}/bin/events
+#!/usr/bin/env python
+
+# Now you can dynamically change the maximum number of simultaneous
+# downloads writing the new number to the file "max_downloads_file" and
+# then sending a signal SIGHUP to the rtorrentqueuemanager process.
+
+import glob
+import stat
+import os
+import shutil
+import time
+import signal
+
+watch = "${BASEPATH}/data/watch"
+session = "${BASEPATH}/data/session"
+queue = "${BASEPATH}/data/loading"
+max_downloads_file = "${BASEPATH}/data/max_downloads"
+max_downloads = 2
+
+def handler_sighup(signum, frame):
+    f = open(max_downloads_file, "r")
+    max_downloads = int(f.readline())
+    f.close()
+
+#### START
+signal.signal(signal.SIGHUP, handler_sighup)
+while True:
+    bz2files = glob.glob(queue + "/*.torrent.bz2")
+    for i in bz2files :
+        os.system('bzip2 -d ' + i)
+    gzipfiles = glob.glob(queue + "/*.torrent.gz")
+    for i in gzipfiles :
+        os.system('gunzip ' + i)
+    sfiles = glob.glob(session + "/*.torrent")
+    oldesttime = 0
+    oldestfile = ""
+    if len(sfiles) < max_downloads :
+        qfiles = glob.glob(queue + "/*.torrent")
+        for i in qfiles :
+            ftime = os.stat(i)[stat.ST_MTIME]
+            if oldesttime == 0 or ftime < oldesttime :
+                oldesttime = ftime
+                oldestfile = i
+        if oldestfile != "" :
+            shutil.move(oldestfile, watch)
+    os.system('/opt/event_correlation/bin/cleanup_stale')
+    time.sleep(60)
+EOF
+chmod 755 ${BASEPATH}/bin/events
+
+########################################
+# the uploader
+#
+# /opt/event_correlation/bin/cleanup_stale
+cat<<EOF > /opt/event_correlation/bin/cleanup_stale
+#!/bin/bash
+export COMPLETED='/opt/event_correlation/data/completed';
+if [ -z "\${CREDENTIALS}" ]; then echo "CREDENTIALS not set"; exit 1;fi
+if [ -z "\${BASEURL}" ]; then echo "BASEURL not set"; exit 1;fi
+
+curl --insecure -u "\${CREDENTIALS}" "\${BASEURL}" > /dev/null 2>&1
+if [ \$? != 0 ];then exit;fi
+
+while [ 1 ]; do
+    if [ -d "\${COMPLETED}" ];then
+        if [ "\$(ls -A "\${COMPLETED}")" ]; then
+
+            cd "\${COMPLETED}"
+            if [ "\$(pwd)" == "\${COMPLETED}" ]; then
+                find * -type f | while read line; do
+                    key=\$(echo "\$line"|sed -e 's/ /_/g');
+                    echo "\$key";
+                    ( 
+                      cd "\${COMPLETED}";
+                      curl --insecure --globoff -u "\${CREDENTIALS}" -X PUT -T "\${line}" "\${BASEURL}/\${key}" && /bin/rm "\${line}"
+                      echo \$?;
+                    )
+                done;
+                find * -type d | while read directory; do
+                    [ "\$(ls -A "\${directory}")" ] ||                 rmdir "\${directory}"
+                done
+            fi
+        fi
+    fi
+    echo -n "."
+    sleep 150
+done
+EOF
+chmod 755 /opt/event_correlation/bin/cleanup_stale
+
+[ -f /usr/bin/rtorrent ] && /bin/mv /usr/bin/rtorrent /usr/bin/event_loop

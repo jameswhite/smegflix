@@ -1,0 +1,54 @@
+#!/bin/bash
+################################################################################
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+################################################################################
+if [ -z "${LDAP_USERNAME}" ];then echo "no LDAP_USERNAME" ;exit 1 ;fi
+if [ -z "${LDAP_PASSWORD}" ];then echo "no LDAP_PASSWORD" ;exit 1 ;fi
+if [ -z "${DOMAIN}" ]; then echo "no  DOMAIN"; exit 1; fi
+if [ -z "${BASEURL}" ];then echo "no BASEURL"; exit 1; fi
+export CREDENTIALS="${LDAP_USERNAME}:${LDAP_PASSWORD}"
+########################################
+# the .screenrc file
+#
+su - opt whoami
+/bin/ln -s /opt/event_correlation/etc/rtorrent.rc /home/opt/.rtorrent.rc
+chown -h opt:users /home/opt/.rtorrent.rc
+cat<<EOF > /home/opt/.screenrc
+startup_message off
+screen -t file_mover 1 /opt/event_correlation/bin/events
+screen -t workspace  2 /bin/bash
+screen -t sabnzbd    3 /usr/bin/python /opt/local/SABnzbd-0.5.6/SABnzbd.py 
+screen -t sickbeard  3 /usr/bin/python /opt/local/sickbeard/SickBeard.py
+screen -t event_loop 0 /usr/bin/event_loop
+detach
+EOF
+
+chown -R opt:users /opt/event_correlation
+chown opt:users /home/opt/.screenrc
+
+if [ ! -f /root/.ssh/id_dsa ]; then
+    ssh-keygen -t dsa -N '' -f /root/.ssh/id_dsa
+fi
+[ ! -d /home/opt/.ssh ] && mkdir /home/opt/.ssh 
+cat /root/.ssh/id_dsa.pub > /home/opt/.ssh/authorized_keys
+cat<<EOF >>/home/opt/.ssh/authorized_keys
+ssh-dss AAAAB3NzaC1kc3MAAACBAMuNz48zQV6mbDxnw7xcIsrC+zbFznEmNq+rhtir9MC6Owow2gEFHuTDDAnaO+sKmZ9dBYjanldKF7dDuhIXfcLfc4ZMCeYVcRgPu6O32s5KuvZuQ1qCnNuDvdvGRYyrVRTxMPmspeiNIKPJ2gr9Cpjv9pTMc1C6bTszCAQrqUCPAAAAFQD6uoIvGeDL7DHdtz1qmLLFh3Y9lQAAAIEAs1BSZUhgkv+RD9AuU7e1InuU6ylE5A+PX+62MjlUWHKR/ViKnGwS5+iWQPF4jYTSdnhtmD89omnH5yOrDWEBNKzdNO1USErKdLob6u+DuWtTe0b/lsvqn9rNksFlug91hpYgNfn3FvAufbMY8uWJie56vLsCAsuX2PGMu5lcyCAAAACBAKtKpD2GJCt1/5lfOpcJ+t4HTGv1vmZaOlWQW6caPrelOo+iXJjda34Rd+cAml5x64Utc0QcxWZMXCZ0y/eBRk5+Y3Z43j7YCNXzWfW+2NyrIG5iV6GZHIEys6Pn7UJQboy6hdHgCx7niksXKcnxI0kggDRK7qCfKfBEzwvntbx6 www-data@smegasaurus.com
+ssh-dss AAAAB3NzaC1kc3MAAACBALa6xIb9VqCmop2II9/ni4DEo5X5X7MAV9L/GhoF159lIxCReFwXXxYOp9xGcQd68JMT34H2lbYEy6VNCZVJ46CVXKM0TBZdVYJuDjFAjA0yJLBpsA45VNOgf/ft52XYXMSZEyyUfLu6KrnFZtjiRD5gl0XNS7+dV4sCEYbpoLbnAAAAFQDNWh7gRkE6sfQaWJfPbHcDGYtiiQAAAIBMFD0hicjTyCjzbOLt0SUgY+OdFQEM9FKysdf4NsMM1+wlzw6U5vd7/QlNY50ythzw0YgK1DfHfkmIQT+frvDLX4Rl4th0mS92txaUUdmu49SEy3jEsbrplr5f/PkMOrzG8L5aE1OgXE77XHjejmXdVYcvPxc2inSRdD0l27lOkwAAAIAXljxAemz71k+iEBbBqJhbtMz36ezBJLa9pedeMXdQ0cThpi7Z4kx4TAXUg9KK4jZXTxZSjM9FFRBDw7mRop2suSEJJaFgZOop0yFJevFkCSMKZeWCTNxw9sYq+0qSnRdqD+gt7p7Lq4Yd1DF8YqFx1zC6tFE5uD491icLHVuxug== smeggy@smegasuarus.com
+EOF
+
+chown -R opt:users /home/opt/.ssh
+chmod 750 /home/opt/.ssh
+chmod 640 /home/opt/.ssh/authorized_keys
+ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts
+
+cat<<EOF > /etc/credentials
+export DOMAIN="${DOMAIN}"
+export LDAP_USERNAME="${LDAP_USERNAME}"
+export LDAP_PASSWORD="${LDAP_PASSWORD}"
+export CREDENTIALS="${LDAP_USERNAME}:${LDAP_PASSWORD}"
+export BASEURL="${BASEURL}"
+EOF
+
+ssh -t opt@localhost "source /etc/credentials && screen"
+
+[ -f  /etc/credentials ] && /bin/rm /etc/credentials
