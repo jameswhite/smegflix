@@ -62,3 +62,4 @@ EOF
 ssh -t opt@localhost "source /etc/credentials && screen"
 
 [ -f  /etc/credentials ] && /bin/rm /etc/credentials
+exit 0;

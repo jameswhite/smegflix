@@ -80,3 +80,4 @@ EOF
 chown www-data:www-data /opt/local/wtorrent/db/database.db /opt/local/wtorrent/conf/user.conf.php
 
 [ -f /opt/local/wtorrent/install.php ] && /bin/rm /opt/local/wtorrent/install.php
+exit 0;

@@ -344,3 +344,4 @@ curl http://127.0.0.1/mediacas/incoming/git/mediacas.tar.gz > /opt/local/mediaca
 # ( cd /opt/git; tar cvzf /opt/local/mediacas.tar.gz mediacas )
 # curl -X PUT -T /opt/local/mediacas.tar.gz http://127.0.0.1/mediacas/incoming/git/mediacas.tar.gz
 
+exit 0;

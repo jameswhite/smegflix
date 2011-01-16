@@ -2,10 +2,31 @@
 ################################################################################
 # This is just a proof of concept. It's not really useful to anyone but me; 
 # But I didn't want to lose it, so I put it in teh githubz
+# It assumes that you have:
+# 1) a VPS running debian 5.0.7 (lenny)
+# 2) an iPredator account 
+# 3) an Amazon AWS Account with S3 Credentials 
+# 4) an LDAP Server with user accounts on it  (for apache access)
+# 5) a NZBMatrix account
+# 6) an Astraweb.com NNTP account
+
+# The following environment variables installed in your shell (prior to running install)
+#
+# IPREDATOR_USERNAME IPREDATOR_PASSWORD 
+# S3KEY S3SECRET S3ROBUCKET S3RWBUCKET 
+# LDAP_USERNAME LDAP_PASSWORD 
+# LDAP_ANON_BIND LDAP_ANON_USER LDAP_ANON_PASS
+# DOMAIN BASEURL 
+# DDNS_LOGIN DDNS_PASSWORD DDNS_DOMAIN 
+# NZBMATRIX_LOGIN NZBMATRIX_APIKEY 
+# ASTRAWEB_LOGIN ASTRAWEB_PASSWORD 
+# SABNZBD_APIKEY 
+# MEDIACAS_HOSTNAME 
+#
 ################################################################################
 export TMP=$(mktemp -d /tmp/SMEGFLIX.XXXX)
-[ -d "${TMP}" ] && ( cd ${TMP}; git clone git://github.com/fapestniegd/smegflix.git )
+[ -d "${TMP}" ] && ( cd ${TMP}; git clone git://github.com/fapestniegd/smegflix.git smegflix )
 if [ -x "${TMP}/smegflix/install" ] ;then 
-    ( cd ${TMP}; git clone git://github.com/fapestniegd/smegflix.git )
+    ${TMP}/smegflix/install
     [ -d "${TMP}" ] && rm -fr "${TMP}"
 fi

@@ -235,3 +235,4 @@ EOF
 chown -R opt:users /home/opt/.sabnzbd
 
 # /usr/bin/python /opt/local/SABnzbd-0.5.6/SABnzbd.py 
+exit 0;
