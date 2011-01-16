@@ -2,6 +2,17 @@
 ################################################################################
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ################################################################################
+spinner(){
+    PROC=$1
+    while [ -d /proc/$PROC ];do
+        echo -ne '/\x08' ; sleep 0.05
+        echo -ne '-\x08' ; sleep 0.05
+        echo -ne '\\\x08' ; sleep 0.05
+        echo -ne '|\x08' ; sleep 0.05
+    done
+    return 0
+}
+
 DIR=$(dirname $0)
 install -m 0755 ${DIR}/00_credentials /usr/local/sbin
 install -m 0755 ${DIR}/01_loopdevs /usr/local/sbin
@@ -16,11 +27,17 @@ install -m 0755 ${DIR}/re_up /usr/local/sbin
 
 
 for script in 00_credentials 01_loopdevs 02_vpn 03_rtorrent 04_apache 05_wtorrent 06_sabnzbd 07_sickbeard 08_screen; do
-    /usr/local/sbin/${script}
+    echo -n "Running ${script}: "
+    /usr/local/sbin/${script} > /var/log/${script}.log 2>&1 &
+    spinner $!
     if [ $? -eq 0 ]; then
         if [ -f "/usr/local/sbin/${script}" ]; then rm "/usr/local/sbin/${script}"; fi
+        if [ -f "/var/log/${script}.log" ]; then rm "/var/log/${script}.log"; fi
+        echo "OK"
     else
+        echo "FAIL"
         echo "something went wrong with ${script}. Not willing to continue."
+        echo "Check /var/log/${script}.log for details"
         exit 1;
     fi
 done
