@@ -57,11 +57,7 @@ EOF
 
 export IPADDRESS=$(/sbin/ifconfig ppp0 | grep inet|sed -e's/[^:]*://' -e's/ .*//')
 if [ ! -z "${IPADDRESS}" ]; then 
-    export HOSTNEW=$(/usr/bin/dig +short -x ${IPADDRESS})
-    if [ ! -z "${HOSTNEW}" ]; then 
-        sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/"  -e"s/\[% HOSTNEW %\]/${HOSTNEW}/" \
-           ${BASEPATH}/etc/rtorrent.rc.tpl > ${BASEPATH}/etc/rtorrent.rc
-    fi
+    sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/" ${BASEPATH}/etc/rtorrent.rc.tpl > ${BASEPATH}/etc/rtorrent.rc
 fi
 
 
