@@ -13,37 +13,37 @@
 
 # The following environment variables installed in your shell (prior to running install)
 #
-# IPREDATOR_USERNAME 
-# IPREDATOR_PASSWORD 
+# IPREDATOR_USERNAME  -- Your iPredator username
+# IPREDATOR_PASSWORD  -- Your iPredator password
 #
-# S3KEY 
-# S3SECRET 
-# S3ROBUCKET 
-# S3RWBUCKET
+# S3KEY               -- Amazon s3 key
+# S3SECRET            -- Amazon s3 secret
+# S3ROBUCKET          -- A read-only bucket in s3
+# S3RWBUCKET          -- A read-write bucket in s3
 #
-# LDAP_USERNAME 
-# LDAP_PASSWORD
+# LDAP_USERNAME       -- An LDAP user that may read/write the CAS
+# LDAP_PASSWORD       -- The read/write user's password
 #
-# LDAP_ANON_BIND 
-# LDAP_ANON_USER 
-# LDAP_ANON_PASS
+# LDAP_ANON_BIND      -- The LDAP URI for account lookups
+# LDAP_ANON_USER      -- A user that may bind and look up usernames
+# LDAP_ANON_PASS      -- that user's password
 #
 # DOMAIN              -- The domain whose NS records wil be allowed non-vpn traffic
-# BASEURL 
+# BASEURL             -- The CAS base URL
+# MEDIACAS_HOSTNAME   -- The hostname you push, pull data to, from your CAS
 #
-# DDNS_LOGIN 
-# DDNS_PASSWORD 
-# DDNS_DOMAIN 
+# DDNS_LOGIN          -- Your DynDNS login
+# DDNS_PASSWORD       -- Your DynDNS password
+# DDNS_DOMAIN         -- Your DynDNS hostname
 #
-# NZBMATRIX_LOGIN 
-# NZBMATRIX_APIKEY 
+# NZBMATRIX_LOGIN     -- Your NZBMatrix login
+# NZBMATRIX_APIKEY    -- Your NZBMatrix API Key
 #
-# ASTRAWEB_LOGIN 
-# ASTRAWEB_PASSWORD 
+# ASTRAWEB_LOGIN      -- Your AstraWeb password
+# ASTRAWEB_PASSWORD   -- Your AstraWeb password
 #
-# SABNZBD_APIKEY 
+# SABNZBD_APIKEY      -- Your Sabnzbd api key
 #
-# MEDIACAS_HOSTNAME 
 #
 ################################################################################
 export TMP=$(mktemp -d /tmp/SMEGFLIX.XXXX)

@@ -19,7 +19,7 @@ cat<<EOF >${BASEPATH}/etc/rtorrent.rc.tpl
 bind = [% IPADDRESS %]
 
 # advertise this IP to trackers, it will change, so we template it.
-ip = [% HOSTNEW %]
+ip = [% IPADDRESS %]
 
 # and use this port range
 port_range = 6800-6899
