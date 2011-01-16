@@ -13,8 +13,21 @@ install -m 0755 ${DIR}/06_sabnzbd /usr/local/sbin
 install -m 0755 ${DIR}/07_sickbeard /usr/local/sbin
 install -m 0755 ${DIR}/08_screen /usr/local/sbin
 install -m 0755 ${DIR}/re_up /usr/local/sbin
+
+
+for script in 00_credentials 01_loopdevs 02_vpn 03_rtorrent 04_apache 05_wtorrent 06_sabnzbd 07_sickbeard 08_screen; do
+    /usr/local/sbin/${script}
+    if [ $? -eq 0 ]; then
+        if [ -f "/usr/local/sbin/${script}" ]; then rm "/usr/local/sbin/${script}"; fi
+    else
+        echo "something went wrong with ${script}. Not willing to continue."
+        exit 1;
+    fi
+done
+
+echo "installing re_up into root's crontab"
 cat<<EOF>/root/.crontab
 */5 * * * * /usr/local/sbin/re_up > /dev/null 2>&1
 EOF
 crontab /root/.crontab
-00_
+echo "finished."
