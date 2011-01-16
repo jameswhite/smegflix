@@ -30,8 +30,8 @@ use_udp_trackers = no
 # wtorrent access via rpc2
 scgi_port = localhost:5000
 
-# working directory
-working_directory = ${BASEPATH}/data/
+# working directory (we use a cd $dir in screen instead because this isn't a command in this version)
+# working_directory = ${BASEPATH}/data/
 
 # directory where torrents download
 directory = ${BASEPATH}/data/temp/

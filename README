@@ -4,7 +4,7 @@
 # But I didn't want to lose it, so I put it in teh githubz
 # It assumes that you have:
 #
-#   1) a VPS running debian 5.0.7 (lenny)
+#   1) a VPS running debian 5.0.7 (lenny) with autofs4 and autodir installed
 #   2) an iPredator account 
 #   3) a dyndns account and domain name
 #   4) an Amazon AWS Account with S3 Credentials 
