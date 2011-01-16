@@ -3,16 +3,16 @@
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ################################################################################
 DIR=$(dirname $0)
-install -m ${DIR}/00_credentials /usr/local/sbin
-install -m ${DIR}/01_loopdevs /usr/local/sbin
-install -m ${DIR}/02_vpn /usr/local/sbin
-install -m ${DIR}/03_rtorrent /usr/local/sbin
-install -m ${DIR}/04_apache /usr/local/sbin
-install -m ${DIR}/05_wtorrent /usr/local/sbin
-install -m ${DIR}/06_sabnzbd /usr/local/sbin
-install -m ${DIR}/07_sickbeard /usr/local/sbin
-install -m ${DIR}/08_screen /usr/local/sbin
-install -m ${DIR}/re_up /usr/local/sbin
+install -m 0755 ${DIR}/00_credentials /usr/local/sbin
+install -m 0755 ${DIR}/01_loopdevs /usr/local/sbin
+install -m 0755 ${DIR}/02_vpn /usr/local/sbin
+install -m 0755 ${DIR}/03_rtorrent /usr/local/sbin
+install -m 0755 ${DIR}/04_apache /usr/local/sbin
+install -m 0755 ${DIR}/05_wtorrent /usr/local/sbin
+install -m 0755 ${DIR}/06_sabnzbd /usr/local/sbin
+install -m 0755 ${DIR}/07_sickbeard /usr/local/sbin
+install -m 0755 ${DIR}/08_screen /usr/local/sbin
+install -m 0755 ${DIR}/re_up /usr/local/sbin
 cat<<EOF>/root/.crontab
 */5 * * * * /usr/local/sbin/re_up > /dev/null 2>&1
 EOF
