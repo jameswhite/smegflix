@@ -12,16 +12,24 @@ export CREDENTIALS="${LDAP_USERNAME}:${LDAP_PASSWORD}"
 #
 /bin/ps -ef | /bin/grep -q aut[o]dir || /etc/init.d/autodir start
 /bin/su - opt whoami
+
 export IPADDRESS=$(/sbin/ifconfig ppp0 | grep inet|sed -e's/[^:]*://' -e's/ .*//')
-[ ! -z "${IPADDRESS}" ] && sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/" ${BASEPATH}/etc/rtorrent.rc.tpl > /home/opt/.rtorrent.rc
+if [ ! -z "${IPADDRESS}" ]; then
+    export HOSTNEW=$(/usr/bin/dig +short -x ${IPADDRESS})
+    if [ ! -z "${HOSTNEW}" ]; then
+        sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/"  -e"s/\[% HOSTNEW %\]/${HOSTNEW}/" \
+           ${BASEPATH}/etc/rtorrent.rc.tpl > ${HOME}/.rtorrent.rc
+    fi
+fi
 chown -h opt:users /home/opt/.rtorrent.rc
+
 cat<<EOF > /home/opt/.screenrc
 startup_message off
 screen -t file_mover 1 /opt/event_correlation/bin/events
 screen -t workspace  2 /bin/bash
 screen -t sabnzbd    3 /usr/bin/python /opt/local/SABnzbd-0.5.6/SABnzbd.py 
 screen -t sickbeard  3 /usr/bin/python /opt/local/sickbeard/SickBeard.py
-screen -t event_loop 0 /usr/bin/event_loop
+screen -t event_loop 0 /bin/bash -c "while [ 1 ]; do /usr/bin/event_loop; sleep 5 ;done"
 detach
 EOF
 

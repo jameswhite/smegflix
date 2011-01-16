@@ -15,8 +15,11 @@ mkdir -p ${BASEPATH}/{etc,data}
 mkdir -p ${BASEPATH}/data/{temp,session,watch,completed,loading,incoming}
 
 cat<<EOF >${BASEPATH}/etc/rtorrent.rc.tpl
+# binde to the vpn IP address
+bind = [% IPADDRESS %]
+
 # advertise this IP to trackers, it will change, so we template it.
-ip = [% IPADDRESS %]
+ip = [% HOSTNEW %]
 
 # and use this port range
 port_range = 6800-6899
@@ -27,11 +30,14 @@ use_udp_trackers = no
 # wtorrent access via rpc2
 scgi_port = localhost:5000
 
-# temporary directory where torrents download
-directory = ${BASEPATH}/data/temp
+# working directory
+working_directory = ${BASEPATH}/data/
+
+# directory where torrents download
+directory = ${BASEPATH}/data/temp/
 
 # session dir is where active torrent files are hashed and kept     
-session = ${BASEPATH}/data/session
+session = ${BASEPATH}/data/session/
 
 # watch this folder for *.torrent files and activate them
 schedule = watch_directory,10,10,load_start=${BASEPATH}/data/watch/*.torrent
@@ -50,7 +56,13 @@ on_finished = move_complete,"execute=/bin/mv,-u,\$d.get_base_path=,${BASEPATH}/d
 EOF
 
 export IPADDRESS=$(/sbin/ifconfig ppp0 | grep inet|sed -e's/[^:]*://' -e's/ .*//')
-[ ! -z "${IPADDRESS}" ] && sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/" ${BASEPATH}/etc/rtorrent.rc.tpl > ${BASEPATH}/etc/rtorrent.rc
+if [ ! -z "${IPADDRESS}" ]; then 
+    export HOSTNEW=$(/usr/bin/dig +short -x ${IPADDRESS})
+    if [ ! -z "${HOSTNEW}" ]; then 
+        sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/"  -e"s/\[% HOSTNEW %\]/${HOSTNEW}/" \
+           ${BASEPATH}/etc/rtorrent.rc.tpl > ${BASEPATH}/etc/rtorrent.rc
+    fi
+fi
 
 
 ########################################

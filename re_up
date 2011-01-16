@@ -26,8 +26,19 @@ while [ ${EXIT} -ne 7 ]; do
 done
 
 export IPADDRESS=$(/sbin/ifconfig ppp0 | grep inet|sed -e's/[^:]*://' -e's/ .*//')
-[ ! -z "${IPADDRESS}" ] && sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/" ${BASEPATH}/etc/rtorrent.rc.tpl > /home/opt/.rtorrent.rc
-chown -h opt:users /home/opt/.rtorrent.rc
+if [ ! -z "${IPADDRESS}" ]; then
+    export HOSTNEW=$(/usr/bin/dig +short -x ${IPADDRESS}|sed -e's/\.$//')
+    if [ ! -z "${HOSTNEW}" ]; then
+        sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/"  -e"s/\[% HOSTNEW %\]/${HOSTNEW}/" \
+           ${BASEPATH}/etc/rtorrent.rc.tpl > ${HOME}/.rtorrent.rc
+        chown -h opt:users /home/opt/.rtorrent.rc
+        PROCESS=$(ps -ef | grep event_l[o]op| awk '{print $2}')
+        # HUP terminates the process outright, violates the principle of least surprise (it should re-load it's config).
+        [ ! -z "${PROCESS}" ] && kill -1 ${PROCESS}
+    fi
+    /bin/hostname ${HOSTNEW}
+fi
+
 
 route add default gw ${IP}
 cat<<EOF >/etc/shorewall/rules
