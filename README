@@ -1,6 +1,7 @@
 #!/bin/bash
 ################################################################################
-# This is just a proof of concept. It's not really useful to anyone but me. but I didn't want to lose it.
+# This is just a proof of concept. It's not really useful to anyone but me; 
+# But I didn't want to lose it, so I put it in teh githubz
 ################################################################################
 export TMP=$(mktemp -d /tmp/SMEGFLIX.XXXX)
 [ -d "${TMP}" ] && ( cd ${TMP}; git clone git://github.com/fapestniegd/smegflix.git )
