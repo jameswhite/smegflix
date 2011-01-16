@@ -157,5 +157,5 @@ while [ 1 ]; do
 done
 EOF
 chmod 755 /opt/event_correlation/bin/cleanup_stale
-[ -f /usr/bin/rtorrent ] && /bin/mv /usr/bin/rtorrent /usr/bin/event_loop
+[ -f /usr/bin/rtorrent ] && /bin/cp /usr/bin/rtorrent /usr/bin/event_loop
 exit 0;
