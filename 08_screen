@@ -10,8 +10,10 @@ export CREDENTIALS="${LDAP_USERNAME}:${LDAP_PASSWORD}"
 ########################################
 # the .screenrc file
 #
-su - opt whoami
-/bin/ln -s /opt/event_correlation/etc/rtorrent.rc /home/opt/.rtorrent.rc
+/bin/ps -ef | /bin/grep -q aut[o]dir || /etc/init.d/autodir start
+/bin/su - opt whoami
+export IPADDRESS=$(/sbin/ifconfig ppp0 | grep inet|sed -e's/[^:]*://' -e's/ .*//')
+[ ! -z "${IPADDRESS}" ] && sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/" ${BASEPATH}/etc/rtorrent.rc.tpl > /home/opt/.rtorrent.rc
 chown -h opt:users /home/opt/.rtorrent.rc
 cat<<EOF > /home/opt/.screenrc
 startup_message off

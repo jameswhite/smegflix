@@ -25,10 +25,15 @@ while [ ${EXIT} -ne 7 ]; do
     route del default
 done
 
+export IPADDRESS=$(/sbin/ifconfig ppp0 | grep inet|sed -e's/[^:]*://' -e's/ .*//')
+[ ! -z "${IPADDRESS}" ] && sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/" ${BASEPATH}/etc/rtorrent.rc.tpl > /home/opt/.rtorrent.rc
+chown -h opt:users /home/opt/.rtorrent.rc
+
 route add default gw ${IP}
 cat<<EOF >/etc/shorewall/rules
 ACCEPT net \$FW:${IP} tcp 22
-ACCEPT net \$FW:${IP} tcp 443
+ACCEPT net \$FW:${IP} tcp 444
+ACCEPT net \$FW:${IP} tcp tcp 6800:6899
 EOF
 for ns in $(dig +short -t ns ${DOMAIN}); do echo "ACCEPT net:$(dig +short $ns) all" >> /etc/shorewall/rules; done
 /etc/init.d/shorewall restart

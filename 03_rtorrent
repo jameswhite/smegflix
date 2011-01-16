@@ -14,17 +14,44 @@ export BASEPATH="/opt/event_correlation"
 mkdir -p ${BASEPATH}/{etc,data}
 mkdir -p ${BASEPATH}/data/{temp,session,watch,completed,loading,incoming}
 
-cat<<EOF >${BASEPATH}/etc/rtorrent.rc
-directory = ${BASEPATH}/data/temp
-session = ${BASEPATH}/data/session
-schedule = watch_directory,10,10,load_start=${BASEPATH}/data/watch/*.torrent
-schedule = untied_directory,5,5,"remove_untied="
-schedule = low_diskspace,60,60,"close_low_diskspace=500M"
-on_finished = rm_torrent,"execute=rm,\$d.get_tied_to_file="
-on_finished = move_complete,"execute=mv,-u,\$d.get_base_path=,${BASEPATH}/data/completed/;d.set_directory=${BASEPATH}/data/completed/"
+cat<<EOF >${BASEPATH}/etc/rtorrent.rc.tpl
+# advertise this IP to trackers, it will change, so we template it.
+ip = [% IPADDRESS %]
+
+# and use this port range
 port_range = 6800-6899
+
+# it can take 60 seconds for this to fail, so disable udp trackers
+use_udp_trackers = no
+
+# wtorrent access via rpc2
 scgi_port = localhost:5000
+
+# temporary directory where torrents download
+directory = ${BASEPATH}/data/temp
+
+# session dir is where active torrent files are hashed and kept     
+session = ${BASEPATH}/data/session
+
+# watch this folder for *.torrent files and activate them
+schedule = watch_directory,10,10,load_start=${BASEPATH}/data/watch/*.torrent
+
+# when a torrent is removed from the watch dir, deactivate its torrent activity
+schedule = untied_directory,5,5,"remove_untied="
+
+# when we start running low on disk (.5GB) space shut down
+schedule = low_diskspace,60,60,"close_low_diskspace=500M"
+
+# remove the torrents from the watch directory when finished (resulting in remove_untied, above)
+on_finished = rm_torrent,"execute=/bin/rm,\$d.get_tied_to_file="
+
+# move the completed torrents' dir_path into the completed dir when done.
+on_finished = move_complete,"execute=/bin/mv,-u,\$d.get_base_path=,${BASEPATH}/data/completed/ ;d.set_directory=${BASEPATH}/data/completed/"
 EOF
+
+export IPADDRESS=$(/sbin/ifconfig ppp0 | grep inet|sed -e's/[^:]*://' -e's/ .*//')
+[ ! -z "${IPADDRESS}" ] && sed -e"s/\[% IPADDRESS %\]/${IPADDRESS}/" ${BASEPATH}/etc/rtorrent.rc.tpl > ${BASEPATH}/etc/rtorrent.rc
+
 
 ########################################
 # the incoming cron job
