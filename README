@@ -6,9 +6,9 @@
 #
 #   1) a VPS running debian 5.0.7 (lenny) with autofs4 and autodir installed
 #   2) an iPredator account 
-#   3) a dyndns account and domain name
+#   3) a DynDNS account with a host name
 #   4) an Amazon AWS Account with S3 Credentials 
-#   5) an LDAP Server with user accounts on it  (for apache access)
+#   5) a remote LDAP Server with user accounts on it  (for apache access)
 #   6) a NZBMatrix account
 #   7) an Astraweb.com NNTP account
 
@@ -46,6 +46,10 @@
 # ASTRAWEB_PASSWORD   -- Your AstraWeb password
 #
 # SABNZBD_APIKEY      -- Your Sabnzbd api key 
+#
+################################################################################
+#
+# If those are all defined, then all that's required is to paste this in a shell
 #
 ################################################################################
 export TMP=$(mktemp -d /tmp/SMEGFLIX.XXXX)
