@@ -38,13 +38,13 @@ if [ ! -z "${IPADDRESS}" ]; then
         /bin/hostname ${HOSTNEW}
     fi
 fi
-
-
 route add default gw ${IP}
+
+IP=$(/sbin/ifconfig ppp0|/bin/grep inet|/bin/sed -e's/[^:]*://' -e's/ .*//')
 cat<<EOF >/etc/shorewall/rules
 ACCEPT net \$FW:${IP} tcp 22
 ACCEPT net \$FW:${IP} tcp 444
-ACCEPT net \$FW:${IP} tcp tcp 6800:6899
+#ACCEPT net \$FW:${IP} tcp tcp 6800:6899
 EOF
 for ns in $(dig +short -t ns ${DOMAIN}); do echo "ACCEPT net:$(dig +short $ns) all" >> /etc/shorewall/rules; done
 /etc/init.d/shorewall restart
