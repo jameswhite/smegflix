@@ -1,6 +1,7 @@
 #!/bin/bash
 ################################################################################
 #  Now fix apache so all these will work...
+apt-get install apache2 libapache2-mod-perl2
 
 COLUMNS=2000; dpkg -l | grep -q libapache2-s3-perl
 if [ $? -ne 0 ];then
@@ -11,16 +12,12 @@ if [ $? -ne 0 ];then
 ( cd /opt/local/src/CPAN; dpkg -i libapache2-s3-perl_0.05-1_all.deb )
 fi
 
-(cd /etc/apache2/mods-enabled; [ ! -h proxy.conf ] && ln -s ../mods-available/proxy.conf)
-(cd /etc/apache2/mods-enabled; [ ! -h proxy.load ] && ln -s ../mods-available/proxy.load)
-(cd /etc/apache2/mods-enabled; [ ! -h rewrite.load ] && ln -s ../mods-available/rewrite.load)
-(cd /etc/apache2/mods-enabled; [ ! -h proxy_http.load ] && ln -s ../mods-available/proxy_http.load)
-(cd /etc/apache2/mods-enabled; [ ! -h authnz_ldap.load ] && ln -s ../mods-available/authnz_ldap.load)
-(cd /etc/apache2/mods-enabled; [ ! -h ldap.load ] && ln -s ../mods-available/ldap.load)
-(cd /etc/apache2/mods-enabled; [ ! -h ssl.load ] && ln -s ../mods-available/ssl.load)
-(cd /etc/apache2/mods-enabled; [ ! -h ssl.conf ] && ln -s ../mods-available/ssl.conf)
+for mod in proxy.conf proxy.load rewrite.load proxy_http.load authnz_ldap.load ldap.load ssl.load ssl.conf dav_fs.conf  dav_fs.load  dav.load  dav_lock.load; do
+    (cd /etc/apache2/mods-enabled; [ ! -h ${mod} ] && ln -s ../mods-available/${mod})
+done
+
 (cd /etc/apache2/sites-enabled;[ ! -h 001-default-ssl ] && ln -s ../sites-available/default-ssl 001-default-ssl)
-(cd /etc/apache2/sites-enabled;[ ! -h 000-default ] && ln -s ../sites-available/defaul  000-default)
+(cd /etc/apache2/sites-enabled;[ ! -h 000-default ] && ln -s ../sites-available/default 000-default)
 
 /bin/mkdir -p /var/www/mediacas/incoming
 
@@ -330,6 +327,55 @@ RewriteLock   /var/tmp/apache2-rewrite.lock
 </VirtualHost>
 </IfModule>
 EOF
+################################################################################
+# The autoloading feature
+#
+[ -d /etc/apache2/ApachePerl ] || mkdir -p /etc/apache2/ApachePerl
+
+cat<<EOF >/etc/apache2/conf.d/loading.dav
+Alias /loading "/opt/event_correlation/data/loading/
+<Directory "/opt/event_correlation/data/loading/">
+    DAV On
+    PerlFixupHandler +ApachePerl::AutoMKCOL
+    PerlCleanupHandler +ApachePerl::AutoDeleteEmpty
+    Options Indexes MultiViews FollowSymLinks
+    AllowOverride None
+    Order allow,deny
+    Allow from all
+</Directory>
+EOF
+
+cat<<EOF |base64 -d| gzip -dc > /etc/apache2/ApachePerl/AutoMKCOL.pm
+H4sIAMk/UE0AA61UTW/bMAy9+1dwToE6QONgPTpIsC5tsWLdFnTdeVBtOhYqS6kkLw2K/vdR8mea
+7NQZAWJTJB/5+KjR6P8+wQimaNMp27C0wPPphf9foRbTi8qqb1+XP27jTRm8C4JA7gtugH4MXO5r
+/lxtvjCZCdRgC2Zhy4UAyx4RmNzB6tc9xWh8qtBYcwYZWtQll0jOCBtmC3/INWZnFJABz4FbyBQa
+eWopFJ+5sWeQamQWjY/aFkrUsTHc5M6ksa5oo9WDQOqx9udy3cG47IBaK+1c1yhRU8Isdj29gxEi
++ZGtEXq2k6SjexYElUEwVvPUzvz7lmlJZZnmqA47T5K7mqE7TCEaz/bPfqL+g/ro0a1ae6O3XnOB
+SbKiZmeD78/MoGQlktMIlqrckBVSJY1l0pr9dEtnhknaeM0X8LSNLq+Wtzffry4djKkeoGim/RJA
+85Q7ONEwB1PwnPrs7ITnxwYZzTe1SnOaIA2YxpSiMW48NLPKtvqIu0hyik70ZFGiLVQWjQGfICQt
+hePOpYfv4e5p2HlF+std+WZnLJa1yKzySvD2Bg2zWjTERUq6VV5J7aH3dLR5UboUv7nMVXwA6np3
+kB5lDq7oNpTKjr2hC3ejOpaA+PFYc2jeoi7neMBn32gt+47XXbsw++tCm3QQ65j9EE2yDnQ8PvA5
+pLZ9XDdCrScL3024bLesL4TEXqW2oo3MadVoZC2jCZyGxEffbAzhaRweYWTAzCdyFtQRMVM+eoqj
+ru4jxOwRRDMVyChWySFTW+aJqhmiS6e+Psg6uD/+lTfjCOE1o/lmTlHpvroHzTfNvukVKilI93Ay
+attawOTjIQGvQf82WKYLIdQWJD7bbgepCF3Jzkcjgcs3+5wk7QbPgteA4P4CsKDL63oGAAA=
+EOF
+
+cat<<EOF |base64 -d| gzip -dc > /etc/apache2/ApachePerl/AutoDeleteEmpty.pm
+H4sIAGFAUE0AA7VUUW/aMBB+z6+4AmqDRmHrYxjVOmDapGqqur5ta+UmF+I1sVPbKUMt/31nkwQY
+QZ3WzUIiOd/d9913l2u3/+3x2gM04YDlLEzwZHDm/i9QpYOzwsgJpmhwmuVm0c8z70U4XhuuEq6B
+fgwswjhFJor8IxNRigpMwgzMeZr2gMWGDEwsYDI9n15NKVThfYHa6B4YxR5QaaQAhJyZBGKp3EvM
+U4TIUY4o5JaFd3OmIsITUWl3SdHWAxFXGBqpOGpL7gWlkWZ3bIawFi8IflNv6HkFUdZG8dAM3TNR
+E1zMdHm1Cj4JgstVpZcYgt8dbt99QUW1N16dy5kzOusHUiIILkic4cb7e6ZRsAzJqQ1jmeVWr1AK
+bZgwejvd2JrhOCy9RqdwP/cn0/H5p8/TiYXRxS0kZesePShPtoCOghHohMdUZ20nPIWM9N9QHXgM
+uZIhak060FDkhan63K8jycnvqOPTDE0iI78LeA+t1Vi0urXXmsEa8cqORJGmq7nQC20wWw2Mket5
+KQExWg0myRHSHMrYeZSXztMq5ybJprjhIpb9HVBbvoV0KCOwvKtQYt53hjrcdqspAUnksEZQPvl1
+zoYImaMgP99FJr06vAtPT27GoBUycWQqx9ohgM5Bq5HBO8tZE/5MYQ6PMLj+ev2t//3VAA4P4TiG
+VpVi0LlpwZJUYpGlQPgNBMNUatx/zWO/014BvoXX3UdQ2SbLrSqEtAOSyQdc33cOqApYNtZBPjlT
+Ro90nnLjHw2OerU8G8NZnXlCNPxc5n4d2e3uTpY9VZrRD8mFS7wO2a3xf/Tp2V4915c/6E1Tfxqd
+7PmbvjUmW2KqcT9OG4SEnGQ3wIX9Xg0XhV0g3H6z9BFXK2Zhv2gL7fb9ft5oCuK5vfmCoNp1ezju
+WNeW5cbWO0tTOQeBP029LGn5qELUPs/CL703Q+8XjYTfo/cHAAA=
+EOF
+################################################################################
 /etc/init.d/apache2 restart
 
 # now that we have S3 Access:
