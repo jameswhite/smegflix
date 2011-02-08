@@ -333,7 +333,7 @@ EOF
 [ -d /etc/apache2/ApachePerl ] || mkdir -p /etc/apache2/ApachePerl
 
 cat<<EOF >/etc/apache2/conf.d/loading.dav
-Alias /loading "/opt/event_correlation/data/loading/
+Alias /loading /opt/event_correlation/data/loading/
 <Directory "/opt/event_correlation/data/loading/">
     DAV On
     PerlFixupHandler +ApachePerl::AutoMKCOL
@@ -375,6 +375,8 @@ Ro90nnLjHw2OerU8G8NZnXlCNPxc5n4d2e3uTpY9VZrRD8mFS7wO2a3xf/Tp2V4915c/6E1Tfxqd
 7PmbvjUmW2KqcT9OG4SEnGQ3wIX9Xg0XhV0g3H6z9BFXK2Zhv2gL7fb9ft5oCuK5vfmCoNp1ezju
 WNeW5cbWO0tTOQeBP029LGn5qELUPs/CL703Q+8XjYTfo/cHAAA=
 EOF
+
+chmod 777 /opt/event_correlation/data/loading
 ################################################################################
 /etc/init.d/apache2 restart
 

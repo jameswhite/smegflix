@@ -1,5 +1,6 @@
 #!/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+DOMAIN=$(cat /etc/dnsdomainname)
 DGW=$(/sbin/route -n|/bin/grep "^0.0.0.0"|/usr/bin/awk '{print $2}')
 if [ ! -z "${DGW}" ]; then
     /bin/ping -w3 -c 3 ${DGW} > /dev/null 2>&1 && exit
@@ -43,7 +44,7 @@ route add default gw ${IP}
 IP=$(/sbin/ifconfig ppp0|/bin/grep inet|/bin/sed -e's/[^:]*://' -e's/ .*//')
 cat<<EOF >/etc/shorewall/rules
 ACCEPT net \$FW:${IP} tcp 22
-ACCEPT net \$FW:${IP} tcp 444
+ACCEPT net \$FW:${IP} tcp 443
 #ACCEPT net \$FW:${IP} tcp tcp 6800:6899
 EOF
 for ns in $(dig +short -t ns ${DOMAIN}); do echo "ACCEPT net:$(dig +short $ns) all" >> /etc/shorewall/rules; done
