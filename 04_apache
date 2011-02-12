@@ -331,7 +331,6 @@ EOF
 ################################################################################
 # The autoloading feature
 #
-[ -d /etc/apache2/ApachePerl ] || mkdir -p /etc/apache2/ApachePerl
 
 cat<<EOF >/etc/apache2/conf.d/loading.dav
 Alias /loading ${BASEPATH}/data/loading/
@@ -355,6 +354,8 @@ Alias /active ${BASEPATH}/data/watch/
     Allow from all
 </Directory>
 EOF
+
+[ -d /etc/apache2/ApachePerl ] || mkdir -p /etc/apache2/ApachePerl
 
 cat<<EOF |base64 -d| gzip -dc > /etc/apache2/ApachePerl/AutoMKCOL.pm
 H4sIAMk/UE0AA61UTW/bMAy9+1dwToE6QONgPTpIsC5tsWLdFnTdeVBtOhYqS6kkLw2K/vdR8mea
