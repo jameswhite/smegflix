@@ -2,6 +2,7 @@
 ################################################################################
 #  Now fix apache so all these will work...
 apt-get install apache2 libapache2-mod-perl2
+export BASEPATH="/opt/event_correlation"
 
 COLUMNS=2000; dpkg -l | grep -q libapache2-s3-perl
 if [ $? -ne 0 ];then
@@ -333,8 +334,18 @@ EOF
 [ -d /etc/apache2/ApachePerl ] || mkdir -p /etc/apache2/ApachePerl
 
 cat<<EOF >/etc/apache2/conf.d/loading.dav
-Alias /loading /opt/event_correlation/data/loading/
-<Directory "/opt/event_correlation/data/loading/">
+Alias /loading ${BASEPATH}/data/loading/
+<Directory "${BASEPATH}/data/loading/">
+    DAV On
+    PerlFixupHandler +ApachePerl::AutoMKCOL
+    PerlCleanupHandler +ApachePerl::AutoDeleteEmpty
+    Options Indexes MultiViews FollowSymLinks
+    AllowOverride None
+    Order allow,deny
+    Allow from all
+</Directory>
+Alias /active ${BASEPATH}/data/watch/
+<Directory "${BASEPATH}/data/watch/">
     DAV On
     PerlFixupHandler +ApachePerl::AutoMKCOL
     PerlCleanupHandler +ApachePerl::AutoDeleteEmpty

@@ -84,6 +84,8 @@ import signal
 watch = "${BASEPATH}/data/watch"
 session = "${BASEPATH}/data/session"
 queue = "${BASEPATH}/data/loading"
+nzbload = "/home/opt/nzb/loading"
+
 max_downloads_file = "${BASEPATH}/data/max_downloads"
 max_downloads = 2
 
@@ -113,8 +115,12 @@ while True:
                 oldestfile = i
         if oldestfile != "" :
             shutil.move(oldestfile, watch)
+    nfiles = glob.glob(queue + "/*.nzb")
+    for n in nfiles :
+            shutil.move(n, nzbload)
     os.system('/opt/event_correlation/bin/cleanup_stale')
-    time.sleep(60)
+    time.sleep(15)
+
 EOF
 chmod 755 ${BASEPATH}/bin/events
 
@@ -131,13 +137,12 @@ if [ -z "\${BASEURL}" ]; then echo "BASEURL not set"; exit 1;fi
 curl --insecure -u "\${CREDENTIALS}" "\${BASEURL}" > /dev/null 2>&1
 if [ \$? != 0 ];then exit;fi
 
-while [ 1 ]; do
     if [ -d "\${COMPLETED}" ];then
         if [ "\$(ls -A "\${COMPLETED}")" ]; then
 
             cd "\${COMPLETED}"
             if [ "\$(pwd)" == "\${COMPLETED}" ]; then
-                find * -type f | while read line; do
+                find * -type f |  egrep -v "^_UNPACK_|^_FAILED_" |while read line; do
                     key=\$(echo "\$line"|sed -e 's/ /_/g');
                     echo "\$key";
                     ( 
@@ -153,8 +158,6 @@ while [ 1 ]; do
         fi
     fi
     echo -n "."
-    sleep 150
-done
 EOF
 chmod 755 /opt/event_correlation/bin/cleanup_stale
 [ -f /usr/bin/rtorrent ] && /bin/cp /usr/bin/rtorrent /usr/bin/event_loop
