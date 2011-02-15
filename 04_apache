@@ -393,12 +393,12 @@ chmod 777 /opt/event_correlation/data/loading
 /etc/init.d/apache2 restart
 
 # now that we have S3 Access:
-[ ! -d /opt/local ] && mkdir -p /opt/local
-curl http://127.0.0.1/mediacas/incoming/git/mediacas.tar.gz > /opt/local/mediacas.tar.gz
-
-# un-pack it
-[ ! -d /opt/git ] && mkdir -p /opt/git
-[ -f /opt/local/mediacas.tar.gz ] && (cd /opt/git; tar xvzf /opt/local/mediacas.tar.gz);
+#[ ! -d /opt/local ] && mkdir -p /opt/local
+#curl http://127.0.0.1/mediacas/incoming/git/mediacas.tar.gz > /opt/local/mediacas.tar.gz
+#
+## un-pack it
+#[ ! -d /opt/git ] && mkdir -p /opt/git
+#[ -f /opt/local/mediacas.tar.gz ] && (cd /opt/git; tar xvzf /opt/local/mediacas.tar.gz);
 
 # Backups:
 # ( cd /opt/git; tar cvzf /opt/local/mediacas.tar.gz mediacas )

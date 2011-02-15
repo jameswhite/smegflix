@@ -87,7 +87,7 @@ queue = "${BASEPATH}/data/loading"
 nzbload = "/home/opt/nzb/loading"
 
 max_downloads_file = "${BASEPATH}/data/max_downloads"
-max_downloads = 2
+max_downloads = 5
 
 def handler_sighup(signum, frame):
     f = open(max_downloads_file, "r")

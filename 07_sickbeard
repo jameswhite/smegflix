@@ -113,7 +113,11 @@ EOF
 
 # This depends on 04_apache not breaking
 for file in sickbeard.db cache.db config.ini opt-media-fs.tar.gz; do
-    curl http://127.0.0.1/mediacas/incoming/sickbeard/${file} > /opt/local/sickbeard/${file}
+    if [ ! -f "/var/tmp/${file}" ];then 
+        curl http://127.0.0.1/mediacas/incoming/sickbeard/${file} > /opt/local/sickbeard/${file}
+    else
+        cp /var/tmp/${file} /opt/local/sickbeard/${file}
+    fi
 done
 [ -f /opt/local/sickbeard/opt-media-fs.tar.gz ] && (cd /opt; tar xvzf /opt/local/sickbeard/opt-media-fs.tar.gz);
 chown -R opt:users /opt/media /opt/local/${SICKBEARD}
@@ -121,6 +125,7 @@ chown -R opt:users /opt/media /opt/local/${SICKBEARD}
 ################################################################################
 # backup script
 #( cd /opt ; tar cvzf /opt/local/sickbeard/opt-media-fs.tar.gz media )
+# for file in sickbeard.db cache.db config.ini; do cp /opt/local/sickbeard/$file /var/tmp; done
 #(
 #  cd /opt/local;
 #  for file in sickbeard.db cache.db config.ini opt-media-fs.tar.gz; do
