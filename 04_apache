@@ -353,6 +353,13 @@ Alias /active ${BASEPATH}/data/watch/
     Order allow,deny
     Allow from all
 </Directory>
+Alias /complete /opt/event_correlation/data/completed
+<Directory "/opt/event_correlation/data/completed/">
+    Options Indexes MultiViews FollowSymLinks
+    AllowOverride None
+    Order allow,deny
+    Allow from all
+</Directory>
 EOF
 
 [ -d /etc/apache2/ApachePerl ] || mkdir -p /etc/apache2/ApachePerl
