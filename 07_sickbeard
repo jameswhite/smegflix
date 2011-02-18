@@ -124,12 +124,10 @@ chown -R opt:users /opt/media /opt/local/${SICKBEARD}
 
 ################################################################################
 # backup script
-#( cd /opt ; tar cvzf /opt/local/sickbeard/opt-media-fs.tar.gz media )
-# for file in sickbeard.db cache.db config.ini; do cp /opt/local/sickbeard/$file /var/tmp; done
-#(
-#  cd /opt/local;
-#  for file in sickbeard.db cache.db config.ini opt-media-fs.tar.gz; do
-#      curl --insecure -X PUT -T sickbeard/${file} http://127.0.0.1/mediacas/incoming/${file}
-#  done
-#)
+cat<<EOF >/usr/local/sbin/mc_backup
+#!/bin/bash
+( cd /opt ; tar cvzf /var/tmp/opt-media-fs.tar.gz media )
+for file in sickbeard.db cache.db config.ini; do cp /opt/local/sickbeard/\${file} /var/tmp; done
 exit 0;
+EOF
+chmod 755 /usr/local/sbin/mc_backup
