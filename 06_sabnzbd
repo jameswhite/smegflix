@@ -18,7 +18,7 @@ su - opt whoami >/dev/null 2>&1
 if [ -d /home/opt/downloads/complete ] ;then
    rmdir /home/opt/downloads/complete
 fi
-ln -s /opt/event_correlation/data/complete /home/opt/downloads/complete
+ln -s /opt/event_correlation/data/completed /home/opt/downloads/complete
 chown -R opt:users /home/opt/downloads
 
 [ ! -d /home/opt/.sabnzbd ] && mkdir -p /home/opt/.sabnzbd
