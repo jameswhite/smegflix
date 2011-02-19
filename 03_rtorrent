@@ -142,7 +142,7 @@ if [ \$? != 0 ];then exit;fi
 
             cd "\${COMPLETED}"
             if [ "\$(pwd)" == "\${COMPLETED}" ]; then
-                find * -type f |  egrep -v "^_UNPACK_|^_FAILED_" |while read line; do
+                find * -type f |  egrep -v "_UNPACK_|_FAILED_" |while read line; do
                     key=\$(echo "\$line"|sed -e 's/ /_/g');
                     echo "\$key";
                     ( 
