@@ -361,6 +361,7 @@ Alias /complete /opt/event_correlation/data/completed
     Allow from all
 </Directory>
 EOF
+/bin/chmod 1777 /opt/event_correlation/data/loading/
 
 [ -d /etc/apache2/ApachePerl ] || mkdir -p /etc/apache2/ApachePerl
 
