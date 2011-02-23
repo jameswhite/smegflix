@@ -1,0 +1,5 @@
+#!/bin/bash
+( cd /opt ; tar cvzf /var/tmp/opt-media-fs.tar.gz media )
+for file in sickbeard.db cache.db config.ini; do cp /opt/local/sickbeard/${file} /var/tmp; done
+cp /home/opt/.sabnzbd/sabnzbd.ini /var/tmp/sabnzbd.ini
+exit 0;
