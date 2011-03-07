@@ -47,6 +47,13 @@ Include ipaccess.conf
 Satisfy Any
 EOF
 
+if [ ! -d /etc/ldap/ssl ];then mkdir -p /etc/ldap/ssl; fi
+for uri in $(dig +short -ttxt ca-cert.${DOMAIN} | sed -e 's/"//g'); do
+    if [ ! -s /etc/ldap/ssl/domain_trustchain.pem ]; then
+        wget -O /etc/ldap/ssl/domain_trustchain.pem ${uri}
+    fi
+done
+
 # now we create a one-reboot-persistent 4096 bit key for our SSL stuff.
 openssl genrsa -out /etc/ssl/private/ssl-cert-snakeoil.key 4096      
 cat<< EOCNF > /etc/ssl/openssl.cnf
