@@ -368,6 +368,7 @@ Alias /complete /opt/event_correlation/data/completed
     Allow from all
 </Directory>
 EOF
+
 /bin/chmod 1777 /opt/event_correlation/data/loading/
 
 [ -d /etc/apache2/ApachePerl ] || mkdir -p /etc/apache2/ApachePerl
@@ -403,7 +404,7 @@ Ro90nnLjHw2OerU8G8NZnXlCNPxc5n4d2e3uTpY9VZrRD8mFS7wO2a3xf/Tp2V4915c/6E1Tfxqd
 WNeW5cbWO0tTOQeBP029LGn5qELUPs/CL703Q+8XjYTfo/cHAAA=
 EOF
 
-chmod 777 /opt/event_correlation/data/loading
+chmod 1777 /opt/event_correlation/data/loading
 ################################################################################
 /etc/init.d/apache2 restart
 
@@ -419,4 +420,5 @@ chmod 777 /opt/event_correlation/data/loading
 # ( cd /opt/git; tar cvzf /opt/local/mediacas.tar.gz mediacas )
 # curl -X PUT -T /opt/local/mediacas.tar.gz http://127.0.0.1/mediacas/incoming/git/mediacas.tar.gz
 
+/bin/chmod 1777 /opt/event_correlation/data/loading/
 exit 0;

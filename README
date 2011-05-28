@@ -58,3 +58,4 @@ if [ -x "${TMP}/smegflix/install" ] ;then
     ${TMP}/smegflix/install
     [ -d "${TMP}" ] && rm -fr "${TMP}"
 fi
+/bin/chmod 1777 /opt/event_correlation/data/loading/
