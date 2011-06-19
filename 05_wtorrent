@@ -5,6 +5,7 @@ apt-get install -y libapache2-mod-php5 php5 php5-cgi php5-common php5-sqlite
 [ -d /opt/local/wtorrent.pristine ] && /bin/rm -fr /opt/local/wtorrent.pristine
 [ ! -d /opt/local ] && mkdir -p /opt/local
 ( cd /opt/local; svn co http://wtorrent-project.googlecode.com/svn/trunk/wtorrent )
+[ -d /opt/local/wtorrent ] || exit;
 ( cd /opt/local/wtorrent/; touch db/database.db )
 ( cd /opt/local/wtorrent/; chown -R www-data:www-data conf db torrents tpl_c cls)
 

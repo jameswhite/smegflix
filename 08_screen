@@ -58,5 +58,5 @@ export LDAP_PASSWORD="${LDAP_PASSWORD}"
 export CREDENTIALS="${LDAP_USERNAME}:${LDAP_PASSWORD}"
 export BASEURL="${BASEURL}"
 EOF
-ssh -t opt@localhost "source /etc/credentials && screen"
+ssh -t opt@localhost "source /etc/credentials && screen -d -m"
 [ -f  /etc/credentials ] && /bin/rm /etc/credentials
