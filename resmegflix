@@ -1,0 +1,39 @@
+#!/bin/bash
+#SMEGFLIX_HOST=''# added to .credendials
+#RELAY_HOST=''   # added to .credendials
+. ~/.credentials
+ssh -t root@${RELAY_HOST} ssh root@${SMEGFLIX_HOST} route -n 2>/dev/null | grep -q "^0.0.0.0"
+if [ $? -ne 0 ]; then
+    echo "Backing up current state."
+    ssh -t root@${RELAY_HOST} "ssh root@${SMEGFLIX_HOST} \"/usr/local/sbin/mc_backup >/dev/null 2>&1\""
+    echo "rebooting ${SMEGFLIX_HOST} via ${RELAY_HOST}..."
+    ssh -t root@${RELAY_HOST} "ssh root@${SMEGFLIX_HOST} \"reboot\"" 2>/dev/null
+    echo -n "ping until down: "
+    ssh -t root@${RELAY_HOST}  "EXIT=0; while [ \"\${EXIT}\" == \"0\" ]; do ping -c1 -w2 ${SMEGFLIX_HOST} >/dev/null 2>&1; EXIT=\$?; [ \"\${EXIT}\" != \"1\" ] && echo -n '#' || echo -n '_'; sleep 3; done" 2>/dev/null
+    echo
+    echo -n "ping until up: "
+    ssh -t root@${RELAY_HOST}  "while [ \"\${EXIT}\" != \"0\" ]; do ping -c1 -w2 ${SMEGFLIX_HOST} >/dev/null 2>&1; EXIT=\$?; [ \"\${EXIT}\" != \"0\" ] && echo -n '_' || echo -n '#'; sleep 3; done" 2>/dev/null
+    echo
+    echo -n "wait for ssh: "
+    export REMOTE_HOST=''
+    REMOTE_HOST=$(ssh -t root@${RELAY_HOST} "ssh -o\"ConnectTimeout=5\" root@${SMEGFLIX_HOST} hostname 2>/dev/null" 2>/dev/null|strings)
+        echo -n "."
+    while [ "${REMOTE_HOST}" == '' ];do
+        echo -n "."
+        REMOTE_HOST=$(ssh -t root@${RELAY_HOST} "ssh -o\"ConnectTimeout=5\" root@${SMEGFLIX_HOST} hostname 2>/dev/null" 2>/dev/null|strings)
+    done
+    echo
+    #ssh -t root@${RELAY_HOST} "ssh -t root@${SMEGFLIX_HOST} \"echo \\\$(hostname -s): \\\$(date)\""
+    echo "cloning smegflix:"
+(cat ~/.credentials; cat <<EOF) | ssh -t root@${RELAY_HOST} "cat|ssh -t root@${SMEGFLIX_HOST}" 2>/dev/null
+export TMP=\$(mktemp -d /tmp/SMEGFLIX.XXXX)
+[ -d "\${TMP}" ] && ( cd \${TMP}; git clone git://github.com/fapestniegd/smegflix.git smegflix )
+if [ -x "\${TMP}/smegflix/install" ] ;then 
+    \${TMP}/smegflix/install
+    [ -d "\${TMP}" ] && rm -fr "\${TMP}"
+fi
+/bin/chmod 1777 /opt/event_correlation/data/loading/
+EOF
+else
+    echo "Default route looks OK. Doing nothing."
+fi
