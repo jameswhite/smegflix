@@ -32,7 +32,7 @@ for script in 00_credentials 01_loopdevs 02_vpn 03_rtorrent 04_apache 05_wtorren
     spinner $!
     if [ $? -eq 0 ]; then
         if [ -f "/usr/local/sbin/${script}" ]; then rm "/usr/local/sbin/${script}"; fi
-        if [ -f "/var/log/${script}.log" ]; then rm "/var/log/${script}.log"; fi
+        #if [ -f "/var/log/${script}.log" ]; then rm "/var/log/${script}.log"; fi
         echo "OK"
     else
         echo "FAIL"
