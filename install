@@ -41,7 +41,7 @@ for script in 00_credentials 01_loopdevs 02_vpn 03_rtorrent 04_apache 05_wtorren
         exit 1;
     fi
 done
-/usr/local/sbin/08_screen # doesn't seem to want to run in the background
+/usr/local/sbin/08_screen > /var/log/08_screen.log 2>&1 # doesn't seem to want to run in the background
 
 echo "installing re_up into root's crontab"
 cat<<EOF>/root/.crontab
