@@ -20,6 +20,7 @@ done
 
 ################################################################################
 # /opt overlay
+[ ! -d /u01 ] && mkdir -p /u01
 ps -ef | grep -q auto[d]ir && /etc/init.d/autodir stop
 if [ ! -f /u01/oradata.bak ]; then
     dd if=/dev/zero of=/u01/oradata.bak bs=10240 count=1843200
